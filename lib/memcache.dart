@@ -108,7 +108,7 @@ abstract class Memcache {
    * The values are returned in a map where the keys are the same instances
    * as where passed in the [keys] argument.
    */
-  Future<Map> getAll(Iterable keys, {bool asBinary: false});
+  Future<Map> getAll(Iterable keys, {bool asBinary = false});
 
   /**
    * Sets the value for a key in memcache. The value is set unconditionally.
@@ -134,7 +134,7 @@ abstract class Memcache {
    *     m.set([0, 1, 2], [3, 4, 5], expiration: new Duration(hours: 1));
    */
   Future set(key, value,
-      {Duration expiration, SetAction action: SetAction.SET});
+      {Duration expiration, SetAction action = SetAction.SET});
 
   /**
    * Sets multiple values in memcache.
@@ -160,7 +160,7 @@ abstract class Memcache {
    * first failure encountered. There might be different failures as well.
    */
   Future setAll(Map keysAndValues,
-      {Duration expiration, SetAction action: SetAction.SET});
+      {Duration expiration, SetAction action = SetAction.SET});
 
   /**
    * Removes the key from memcache.
@@ -189,7 +189,7 @@ abstract class Memcache {
    *
    * The updated value is returned.
    */
-  Future<int> increment(key, {int delta: 1, int initialValue: 0});
+  Future<int> increment(key, {int delta = 1, int initialValue = 0});
 
   /**
    * Decrement the value of a key in memcache.
@@ -204,7 +204,7 @@ abstract class Memcache {
    *
    * The updated value is returned.
    */
-  Future<int> decrement(key, {int delta: 1, int initialValue: 0});
+  Future<int> decrement(key, {int delta = 1, int initialValue = 0});
 
   /**
    * Delete all items in memcache.

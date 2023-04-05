@@ -340,23 +340,23 @@ class Request extends Header {
   }
 
   factory Request.add(List<int> key, List<int> value,
-      {int flags: 0, int expiration: 0}) {
+      {int flags = 0, int expiration = 0}) {
     return Request._update(Opcode.OPCODE_ADD, key, value, flags, expiration, 0);
   }
 
   factory Request.set(List<int> key, List<int> value,
-      {int flags: 0, int expiration: 0, int cas: 0}) {
+      {int flags = 0, int expiration = 0, int cas = 0}) {
     return Request._update(
         Opcode.OPCODE_SET, key, value, flags, expiration, cas);
   }
 
   factory Request.replace(List<int> key, List<int> value,
-      {int flags: 0, int expiration: 0, int cas: 0}) {
+      {int flags = 0, int expiration = 0, int cas = 0}) {
     return Request._update(
         Opcode.OPCODE_REPLACE, key, value, flags, expiration, cas);
   }
 
-  factory Request.delete(List<int> key, {int cas: 0}) {
+  factory Request.delete(List<int> key, {int cas = 0}) {
     return Request(Opcode.OPCODE_DELETE, DELETE_EXTRAS_LENGTH, key, null, cas);
   }
 
@@ -383,13 +383,13 @@ class Request extends Header {
   }
 
   factory Request.increment(List<int> key, int delta, int initialValue,
-      {int expiration: 0}) {
+      {int expiration = 0}) {
     return Request._incrDecr(
         Opcode.OPCODE_INCREMENT, key, delta, initialValue, expiration);
   }
 
   factory Request.decrement(List<int> key, int delta, int initialValue,
-      {int expiration: 0}) {
+      {int expiration = 0}) {
     return Request._incrDecr(
         Opcode.OPCODE_DECREMENT, key, delta, initialValue, expiration);
   }
@@ -680,7 +680,6 @@ class _ResponseTransformerSink implements EventSink<List<int>> {
           break;
         case STATE_FAILURE:
           throw MemCacheError('Data on failed connection');
-          break;
       }
     }
   }

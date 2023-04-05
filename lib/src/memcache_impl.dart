@@ -122,7 +122,7 @@ class MemCacheImpl implements Memcache {
   }
 
   raw.IncrementOperation _createIncrementOperation(
-      dynamic key, int direction, int delta, int initialValue) {
+      dynamic key, int direction, int? delta, int initialValue) {
     if (delta is! int) {
       throw ArgumentError('Delta value must have type int');
     }
