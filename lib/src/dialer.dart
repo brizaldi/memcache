@@ -25,8 +25,8 @@ class Dialer {
   final String host;
   final int port;
 
-  Completer _completer;
-  DateTime _lastDial;
+  Completer<MemCacheNativeConnection>? _completer;
+  DateTime? _lastDial;
 
   Dialer(this.host, this.port);
 
@@ -37,29 +37,29 @@ class Dialer {
   ///
   /// The number of dials a second is rate-limited.
   Future<MemCacheNativeConnection> dial() {
-    if (_completer != null) return _completer.future;
-    _completer = new Completer<MemCacheNativeConnection>();
+    if (_completer != null) return _completer!.future;
+    _completer = Completer<MemCacheNativeConnection>();
     _performSingleDial();
-    return _completer.future;
+    return _completer!.future;
   }
 
   _performSingleDial() async {
     // We rate-limit the number of dials to `1/_MinimumTimeBetweenConnects`.
     if (_lastDial != null) {
-      final now = new DateTime.now();
-      final duration = now.difference(_lastDial);
+      final now = DateTime.now();
+      final duration = now.difference(_lastDial!);
       if (duration < _MinimumTimeBetweenConnects) {
-        await new Future.delayed(_MinimumTimeBetweenConnects - duration);
+        await Future.delayed(_MinimumTimeBetweenConnects - duration);
       }
     }
-    _lastDial = new DateTime.now();
+    _lastDial = DateTime.now();
 
     try {
       final connection = await MemCacheNativeConnection.connect(host, port);
-      _completer.complete(connection);
+      _completer?.complete(connection);
       _completer = null;
     } catch (error) {
-      _completer.completeError(new NetworkException(error));
+      _completer?.completeError(NetworkException(error));
       _completer = null;
     }
   }

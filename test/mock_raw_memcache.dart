@@ -7,11 +7,11 @@ import 'dart:async';
 import 'package:memcache/memcache_raw.dart';
 
 class MockRawMemcache implements RawMemcache {
-  Function _handleGet;
-  Function _handleSet;
-  Function _handleRemove;
-  Function _handleIncrement;
-  Function _handleClear;
+  Function? _handleGet;
+  Function? _handleSet;
+  Function? _handleRemove;
+  Function? _handleIncrement;
+  Function? _handleClear;
 
   // Create a raw memcache mock with the given map as content.
   MockRawMemcache();
@@ -38,35 +38,35 @@ class MockRawMemcache implements RawMemcache {
 
   Future<List<GetResult>> get(List<GetOperation> batch) {
     if (_handleGet != null) {
-      return _handleGet(batch);
+      return _handleGet!(batch);
     }
     throw 'Unexpected memcache get';
   }
 
   Future<List<SetResult>> set(List<SetOperation> batch) {
     if (_handleSet != null) {
-      return _handleSet(batch);
+      return _handleSet!(batch);
     }
     throw 'Unexpected memcache set';
   }
 
   Future<List<RemoveResult>> remove(List<RemoveOperation> batch) {
     if (_handleRemove != null) {
-      return _handleRemove(batch);
+      return _handleRemove!(batch);
     }
     throw 'Unexpected memcache remove';
   }
 
   Future<List<IncrementResult>> increment(List<IncrementOperation> batch) {
     if (_handleIncrement != null) {
-      return _handleIncrement(batch);
+      return _handleIncrement!(batch);
     }
     throw 'Unexpected memcache remove';
   }
 
   Future clear() {
     if (_handleClear != null) {
-      return _handleClear();
+      return _handleClear!();
     }
     throw 'Unexpected memcache clear';
   }

@@ -45,11 +45,11 @@ class GetOperation {
 }
 
 class GetResult {
-  final Status status;
-  final String message;
+  final Status? status;
+  final String? message;
   final int flags;
-  final int cas;
-  final List<int> value;
+  final int? cas;
+  final List<int>? value;
 
   GetResult(this.status, this.message, this.flags, this.cas, this.value);
 
@@ -66,8 +66,8 @@ class SetOperation {
 
   final int operation;
   final List<int> key;
-  final int flags;
-  final int cas;
+  final int? flags;
+  final int? cas;
   final List<int> value;
   // Expiration time in seconds. If this value is less than the number of
   // seconds in 30 days (60 * 60 * 24 * 30) the expiration is relative to the
@@ -75,7 +75,7 @@ class SetOperation {
   // the expiration is absolute as seconds since the epoc.
   //
   // See https://github.com/memcached/memcached/blob/master/doc/protocol.txt.
-  final int expiration;
+  final int? expiration;
 
   SetOperation(this.operation, this.key, this.flags, this.cas, this.value,
       this.expiration);
@@ -86,8 +86,8 @@ class SetOperation {
 }
 
 class SetResult {
-  final Status status;
-  final String message;
+  final Status? status;
+  final String? message;
 
   SetResult(this.status, this.message);
 
@@ -103,8 +103,8 @@ class RemoveOperation {
 }
 
 class RemoveResult {
-  final Status status;
-  final String message;
+  final Status? status;
+  final String? message;
 
   RemoveResult(this.status, this.message);
 
@@ -130,8 +130,8 @@ class IncrementOperation {
 }
 
 class IncrementResult {
-  final Status status;
-  final String message;
+  final Status? status;
+  final String? message;
   final int value;
 
   IncrementResult(this.status, this.message, this.value);
@@ -143,61 +143,60 @@ class IncrementResult {
 /// to the server.
 class BinaryMemcacheProtocol implements RawMemcache {
   final Dialer _dialer;
-  api.MemCacheNativeConnection _connection;
+  api.MemCacheNativeConnection? _connection;
 
   BinaryMemcacheProtocol._(this._dialer);
 
   factory BinaryMemcacheProtocol(String host, int port) {
-    return new BinaryMemcacheProtocol._(new Dialer(host, port));
+    return BinaryMemcacheProtocol._(Dialer(host, port));
   }
 
   Future<List<GetResult>> get(List<GetOperation> batch) async {
-    if (_connection == null || _connection.isClosed) {
+    if (_connection == null || (_connection?.isClosed == true)) {
       _connection = await _dialer.dial();
     }
     final futures = batch.map((GetOperation op) {
-      final request = new api.Request.get(op.key);
-      return _connection.sendRequest(request);
+      final request = api.Request.get(op.key);
+      return _connection!.sendRequest(request);
     });
 
     final List<api.Response> responses = await Future.wait(futures);
     return responses.map((api.Response response) {
       switch (response.status) {
         case api.ResponseStatus.KEY_NOT_FOUND:
-          return new GetResult(Status.KEY_NOT_FOUND, response.statusMessage,
+          return GetResult(Status.KEY_NOT_FOUND, response.statusMessage,
               0 /*response.flags*/, response.cas, response.value);
         case api.ResponseStatus.NO_ERROR:
-          return new GetResult(Status.NO_ERROR, null, 0 /*response.flags*/,
+          return GetResult(Status.NO_ERROR, null, 0 /*response.flags*/,
               response.cas, response.value);
         default:
-          return new GetResult(Status.ERROR, response.statusMessage,
+          return GetResult(Status.ERROR, response.statusMessage,
               0 /*response.flags*/, response.cas, response.value);
       }
     }).toList(growable: false);
   }
 
   Future<List<SetResult>> set(List<SetOperation> batch) async {
-    if (_connection == null || _connection.isClosed) {
+    if (_connection == null || _connection?.isClosed == true) {
       _connection = await _dialer.dial();
     }
     final futures = batch.map((SetOperation op) {
       switch (op.operation) {
         case SetOperation.SET:
-          return _connection.sendRequest(new api.Request.set(op.key, op.value,
+          return _connection!.sendRequest(api.Request.set(op.key, op.value,
               flags: op.flags ?? 0,
               cas: op.cas ?? 0,
               expiration: op.expiration ?? 0));
         case SetOperation.ADD:
-          return _connection.sendRequest(new api.Request.add(op.key, op.value,
+          return _connection!.sendRequest(api.Request.add(op.key, op.value,
               flags: op.flags ?? 0, expiration: op.expiration ?? 0));
         case SetOperation.REPLACE:
-          return _connection.sendRequest(new api.Request.replace(
-              op.key, op.value,
+          return _connection!.sendRequest(api.Request.replace(op.key, op.value,
               flags: op.flags ?? 0,
               cas: op.cas ?? 0,
               expiration: op.expiration ?? 0));
-        case SetOperation.CAS:
-          return _connection.sendRequest(new api.Request.set(op.key, op.value,
+        default:
+          return _connection!.sendRequest(api.Request.set(op.key, op.value,
               flags: op.flags ?? 0,
               cas: op.cas ?? 0,
               expiration: op.expiration ?? 0));
@@ -208,56 +207,55 @@ class BinaryMemcacheProtocol implements RawMemcache {
     return responses.map((api.Response response) {
       switch (response.status) {
         case api.ResponseStatus.NO_ERROR:
-          return new SetResult(Status.NO_ERROR, null);
+          return SetResult(Status.NO_ERROR, null);
         case api.ResponseStatus.ITEM_NOT_STORED:
         case api.ResponseStatus.KEY_NOT_FOUND:
-          return new SetResult(Status.NOT_STORED, response.statusMessage);
+          return SetResult(Status.NOT_STORED, response.statusMessage);
         case api.ResponseStatus.KEY_EXISTS:
-          return new SetResult(Status.NOT_STORED, response.statusMessage);
+          return SetResult(Status.NOT_STORED, response.statusMessage);
         default:
-          return new SetResult(Status.ERROR, response.statusMessage);
+          return SetResult(Status.ERROR, response.statusMessage);
       }
     }).toList(growable: false);
   }
 
   Future<List<RemoveResult>> remove(List<RemoveOperation> batch) async {
-    if (_connection == null || _connection.isClosed) {
+    if (_connection == null || _connection?.isClosed == true) {
       _connection = await _dialer.dial();
     }
     final futures = batch.map((RemoveOperation op) {
-      final request = new api.Request.delete(op.key);
-      return _connection.sendRequest(request);
+      final request = api.Request.delete(op.key);
+      return _connection!.sendRequest(request);
     });
 
     final List<api.Response> responses = await Future.wait(futures);
     return responses.map((api.Response response) {
       switch (response.status) {
         case api.ResponseStatus.NO_ERROR:
-          return new RemoveResult(Status.NO_ERROR, null);
+          return RemoveResult(Status.NO_ERROR, null);
         case api.ResponseStatus.KEY_NOT_FOUND:
-          return new RemoveResult(Status.KEY_NOT_FOUND, null);
+          return RemoveResult(Status.KEY_NOT_FOUND, null);
         default:
-          return new RemoveResult(Status.ERROR, response.statusMessage);
+          return RemoveResult(Status.ERROR, response.statusMessage);
       }
     }).toList(growable: false);
   }
 
   Future<List<IncrementResult>> increment(
       List<IncrementOperation> batch) async {
-    if (_connection == null || _connection.isClosed) {
+    if (_connection == null || _connection?.isClosed == true) {
       _connection = await _dialer.dial();
     }
     final futures = batch.map((IncrementOperation op) {
       switch (op.direction) {
         case IncrementOperation.INCREMENT:
-          return _connection.sendRequest(
-              new api.Request.increment(op.key, op.delta, op.initialValue));
+          return _connection!.sendRequest(
+              api.Request.increment(op.key, op.delta, op.initialValue));
         case IncrementOperation.DECREMENT:
-          return _connection.sendRequest(
-              new api.Request.decrement(op.key, op.delta, op.initialValue));
+          return _connection!.sendRequest(
+              api.Request.decrement(op.key, op.delta, op.initialValue));
         default:
-          throw new ArgumentError(
-              'The direction must be increment or decrement!');
+          throw ArgumentError('The direction must be increment or decrement!');
       }
     });
 
@@ -265,29 +263,27 @@ class BinaryMemcacheProtocol implements RawMemcache {
     return responses.map((api.Response response) {
       switch (response.status) {
         case api.ResponseStatus.NO_ERROR:
-          return new IncrementResult(
-              Status.NO_ERROR, null, response.incrDecrValue);
+          return IncrementResult(Status.NO_ERROR, null, response.incrDecrValue);
         case api.ResponseStatus.KEY_NOT_FOUND:
-          return new IncrementResult(
+          return IncrementResult(
               Status.KEY_NOT_FOUND, response.statusMessage, 0);
         default:
-          return new IncrementResult(Status.ERROR, response.statusMessage, 0);
+          return IncrementResult(Status.ERROR, response.statusMessage, 0);
       }
     }).toList(growable: false);
   }
 
   Future clear() async {
-    if (_connection == null || _connection.isClosed) {
+    if (_connection == null || _connection?.isClosed == true) {
       _connection = await _dialer.dial();
     }
 
     final api.Response response =
-        await _connection.sendRequest(new api.Request.flush());
+        await _connection!.sendRequest(api.Request.flush());
     if (response.status != api.ResponseStatus.NO_ERROR) {
-      throw new Exception(
-          'Failed to clear memcache (which should never happen)');
+      throw Exception('Failed to clear memcache (which should never happen)');
     }
   }
 
-  Future close() => _connection?.close();
+  Future? close() => _connection?.close();
 }

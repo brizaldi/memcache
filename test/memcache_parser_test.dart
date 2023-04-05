@@ -35,7 +35,7 @@ int fillTestData(List<int> message, StreamController controller) {
   totalMessages += fillChunks(message, controller);
 
   // Add double message in chunks.
-  var doubleMessage = new List<int>();
+  var doubleMessage = <int>[];
   doubleMessage.addAll(message);
   doubleMessage.addAll(message);
   totalMessages += 2 * fillChunks(doubleMessage, controller);
@@ -45,23 +45,23 @@ int fillTestData(List<int> message, StreamController controller) {
   return totalMessages;
 }
 
-Future testParser(List<int> message, Function f) {
-  var completer = new Completer();
-  var controller = new StreamController<List<int>>();
+Future testParser(List<int> message, void Function(Response) f) {
+  var completer = Completer();
+  var controller = StreamController<List<int>>();
   var count = fillTestData(message, controller);
-  controller.stream.transform(new ResponseTransformer()).listen(
+  controller.stream.transform(ResponseTransformer()).listen(
       expectAsync1(f, count: count),
       onDone: expectAsync0(completer.complete));
   return completer.future;
 }
 
 Future testParserError(List<int> message, Function f) {
-  var completer = new Completer();
-  var controller = new StreamController<List<int>>();
+  var completer = Completer();
+  var controller = StreamController<List<int>>();
   controller.add(message);
   controller.close();
   controller.stream
-      .transform(new ResponseTransformer())
+      .transform(ResponseTransformer())
       .listen((_) => completer.completeError('Unexpected message'), onError: f,
           onDone: expectAsync0(() {
     if (!completer.isCompleted) completer.complete();
@@ -491,11 +491,11 @@ main() {
 
   group('parser-exceptions', () {
     Future testStreamError(error, Function f) {
-      var completer = new Completer();
-      var controller = new StreamController<List<int>>();
+      var completer = Completer();
+      var controller = StreamController<List<int>>();
       controller.addError(error);
       controller.close();
-      controller.stream.transform(new ResponseTransformer()).listen(
+      controller.stream.transform(ResponseTransformer()).listen(
           (_) => completer.completeError('Unexpected message'),
           onError: f, onDone: () {
         if (!completer.isCompleted) completer.complete();
@@ -509,7 +509,7 @@ main() {
     });
 
     test('stream-error-socket', () {
-      return testStreamError(new SocketException("socket exception"),
+      return testStreamError(SocketException("socket exception"),
           expectAsync1((error) => expect(error is MemCacheError, isTrue)));
     });
   });

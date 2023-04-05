@@ -13,8 +13,8 @@ import "src/memcache_impl.dart" show MemCacheImpl;
  * General memcache exception.
  */
 class MemcacheError implements Exception {
-  final Status status;
-  final String message;
+  final Status? status;
+  final String? message;
 
   const MemcacheError(this.status, this.message);
 
@@ -85,7 +85,7 @@ abstract class Memcache {
   /**
    * Makes a new [Memcache] instance based on a [RawMemcache].
    */
-  factory Memcache.fromRaw(RawMemcache raw) => new MemCacheImpl(raw);
+  factory Memcache.fromRaw(RawMemcache raw) => MemCacheImpl(raw);
 
   /**
    * Retreives a value from memcache.
@@ -100,7 +100,7 @@ abstract class Memcache {
    * The internal representation in memcache is binary. When a `String` is
    * returned it uses a UTF-8 decoder to produce a `String`.
    */
-  Future get(key, {bool asBinary: false});
+  Future get(key, {bool asBinary = false});
 
   /**
    * Retreives multiple values from memcache.

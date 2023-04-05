@@ -15,12 +15,12 @@ import 'test_utils.dart';
 main() async {
   final Memcached memcached = await Memcached.start();
   final raw.BinaryMemcacheProtocol rawMemcache =
-      new raw.BinaryMemcacheProtocol('127.0.0.1', memcached.port);
-  final Memcache memcache = new MemCacheImpl(rawMemcache);
+      raw.BinaryMemcacheProtocol('127.0.0.1', memcached.port);
+  final Memcache memcache = MemCacheImpl(rawMemcache);
 
   // Wait a bit for the memchaced server to startup.
   setUpAll(() async {
-    await new Future.delayed(const Duration(seconds: 1));
+    await Future.delayed(const Duration(seconds: 1));
   });
 
   // After running all tests we tear down the memcached server.
@@ -167,7 +167,7 @@ main() async {
       expect(await memcache.get('A'), 'foo');
       expect(await memcache.get('B'), 'bar');
 
-      await new Future.delayed(delay);
+      await Future.delayed(delay);
 
       expect(await memcache.get('A'), 'foo');
       expect(await memcache.get('B'), null);

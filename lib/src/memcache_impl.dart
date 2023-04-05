@@ -14,13 +14,13 @@ import '../memcache_raw.dart' as raw;
 class MemCacheImpl implements Memcache {
   final raw.RawMemcache _raw;
   final bool _withCas;
-  Map<List<int>, int> _cas;
-  Expando _hashCache;
+  Map<List<int>, int>? _cas;
+  Expando<int>? _hashCache;
 
-  MemCacheImpl(this._raw, {withCas: false}) : _withCas = withCas {
+  MemCacheImpl(this._raw, {withCas = false}) : _withCas = withCas {
     if (withCas) {
-      _cas = new HashMap(equals: _keyCompare, hashCode: _keyHash);
-      _hashCache = new Expando<int>();
+      _cas = HashMap(equals: _keyCompare, hashCode: _keyHash);
+      _hashCache = Expando<int>();
     }
   }
 
@@ -31,7 +31,7 @@ class MemCacheImpl implements Memcache {
     int add32(x, y) => (x + y) & MASK_32;
     int shl32(x, y) => (x << y) & MASK_32;
 
-    var cached = _hashCache[key];
+    var cached = _hashCache?[key];
     if (cached != null) {
       return cached;
     }
@@ -46,7 +46,7 @@ class MemCacheImpl implements Memcache {
     hash = add32(hash, shl32(hash, 3));
     hash ^= hash >> 11;
     hash = add32(hash, shl32(hash, 15));
-    _hashCache[key] = hash;
+    _hashCache?[key] = hash;
     return hash;
   }
 
@@ -58,48 +58,50 @@ class MemCacheImpl implements Memcache {
     return true;
   }
 
-  List<int> _createKey(Object key) {
+  List<int> _createKey(dynamic key) {
     if (key is String) {
-      key = utf8.encode(key);
+      final encodedKey = utf8.encode(key);
+      return encodedKey;
     } else {
       if (key is! List<int>) {
-        throw new ArgumentError('Key must have type String or List<int>');
+        throw ArgumentError('Key must have type String or List<int>');
       }
     }
     return key;
   }
 
-  List<int> _createValue(Object value) {
+  List<int> _createValue(dynamic value) {
     if (value is String) {
-      value = utf8.encode(value);
+      final encodedValue = utf8.encode(value);
+      return encodedValue;
     } else {
       if (value is! List<int>) {
-        throw new ArgumentError('Value must have type String or List<int>');
+        throw ArgumentError('Value must have type String or List<int>');
       }
     }
     return value;
   }
 
-  void _checkExpiration(Duration expiration) {
+  void _checkExpiration(Duration? expiration) {
     const int secondsInThirtyDays = 60 * 60 * 24 * 30;
     // Expiration cannot exceed 30 days.
     if (expiration != null && expiration.inSeconds > secondsInThirtyDays) {
-      throw new ArgumentError('Expiration cannot exceed 30 days');
+      throw ArgumentError('Expiration cannot exceed 30 days');
     }
   }
 
   raw.GetOperation _createGetOperation(List<int> key) {
-    return new raw.GetOperation(key);
+    return raw.GetOperation(key);
   }
 
   raw.SetOperation _createSetOperation(
-      Object key, Object value, SetAction action, Duration expiration) {
+      dynamic key, dynamic value, SetAction action, Duration? expiration) {
     var operation;
     var cas;
     switch (action) {
       case SetAction.SET:
         operation = raw.SetOperation.SET;
-        if (_withCas) cas = _findCas(key);
+        if (_withCas) cas = _findCas(key as List<int>);
         break;
       case SetAction.ADD:
         operation = raw.SetOperation.ADD;
@@ -108,59 +110,58 @@ class MemCacheImpl implements Memcache {
         operation = raw.SetOperation.REPLACE;
         break;
       default:
-        throw new ArgumentError('Unsupported set action $action');
+        throw ArgumentError('Unsupported set action $action');
     }
     var exp = expiration != null ? expiration.inSeconds : 0;
-    return new raw.SetOperation(
-        operation, key, 0, cas, _createValue(value), exp);
+    return raw.SetOperation(
+        operation, key as List<int>, 0, cas, _createValue(value), exp);
   }
 
-  raw.RemoveOperation _createRemoveOperation(Object key) {
-    return new raw.RemoveOperation(_createKey(key));
+  raw.RemoveOperation _createRemoveOperation(dynamic key) {
+    return raw.RemoveOperation(_createKey(key));
   }
 
   raw.IncrementOperation _createIncrementOperation(
-      Object key, int direction, int delta, int initialValue) {
+      dynamic key, int direction, int delta, int initialValue) {
     if (delta is! int) {
-      throw new ArgumentError('Delta value must have type int');
+      throw ArgumentError('Delta value must have type int');
     }
-    return new raw.IncrementOperation(
+    return raw.IncrementOperation(
         _createKey(key), delta, direction, 0, initialValue);
   }
 
   void _addCas(List<int> key, int cas) {
-    _cas[key] = cas;
+    _cas?[key] = cas;
   }
 
-  int _findCas(List<int> key) {
-    return _cas[key];
+  int? _findCas(List<int> key) {
+    return _cas?[key];
   }
 
-  Future get(Object key, {bool asBinary: false}) {
-    return new Future.sync(
-            () => _raw.get([_createGetOperation(_createKey(key))]))
+  Future get(dynamic key, {bool asBinary = false}) {
+    return Future.sync(() => _raw.get([_createGetOperation(_createKey(key))]))
         .then((List<raw.GetResult> response) {
       if (response.length != 1) {
         throw const MemcacheError.internalError();
       }
       var result = response.first;
       if (_withCas) {
-        _addCas(key, result.cas);
+        _addCas(key as List<int>, result.cas!);
       }
       if (result.status == raw.Status.KEY_NOT_FOUND) return null;
       if (result.status == raw.Status.NO_ERROR) {
-        return asBinary ? result.value : utf8.decode(result.value);
+        return asBinary ? result.value! : utf8.decode(result.value!);
       }
-      throw new MemcacheError(result.status, 'Error getting item');
+      throw MemcacheError(result.status, 'Error getting item');
     });
   }
 
-  Future<Map> getAll(Iterable keys, {bool asBinary: false}) {
-    return new Future.sync(() {
+  Future<Map> getAll(Iterable keys, {bool asBinary = false}) {
+    return Future.sync(() {
       // Copy the keys as they might get mutated by _createKey below.
       var keysList = keys.toList();
-      var binaryKeys = new List(keysList.length);
-      var request = new List<raw.GetOperation>(keysList.length);
+      var binaryKeys = [];
+      var request = <raw.GetOperation>[];
       for (int i = 0; i < keysList.length; i++) {
         binaryKeys[i] = _createKey(keysList[i]);
         request[i] = _createGetOperation(binaryKeys[i]);
@@ -169,7 +170,7 @@ class MemCacheImpl implements Memcache {
         if (response.length != request.length) {
           throw const MemcacheError.internalError();
         }
-        var result = new Map();
+        var result = Map();
         for (int i = 0; i < keysList.length; i++) {
           var value;
           final responseStatus = response[i].status;
@@ -177,12 +178,12 @@ class MemCacheImpl implements Memcache {
             value = null;
           } else if (responseStatus == raw.Status.NO_ERROR) {
             value =
-                asBinary ? response[i].value : utf8.decode(response[i].value);
+                asBinary ? response[i].value : utf8.decode(response[i].value!);
             if (_withCas) {
-              _addCas(binaryKeys[i], response[i].cas);
+              _addCas(binaryKeys[i], response[i].cas!);
             }
           } else {
-            throw new MemcacheError(responseStatus, 'Error getting item');
+            throw MemcacheError(responseStatus, 'Error getting item');
           }
           result[keysList[i]] = value;
         }
@@ -193,8 +194,8 @@ class MemCacheImpl implements Memcache {
   }
 
   Future set(key, value,
-      {Duration expiration, SetAction action: SetAction.SET}) {
-    return new Future.sync(() {
+      {Duration? expiration, SetAction action = SetAction.SET}) {
+    return Future.sync(() {
       _checkExpiration(expiration);
       key = _createKey(key);
       return _raw
@@ -212,14 +213,14 @@ class MemCacheImpl implements Memcache {
         if (result.status == raw.Status.KEY_EXISTS) {
           throw const ModifiedError();
         }
-        throw new MemcacheError(result.status, 'Error storing item');
+        throw MemcacheError(result.status, 'Error storing item');
       });
     });
   }
 
   Future setAll(Map keysAndValues,
-      {Duration expiration, SetAction action: SetAction.SET}) {
-    return new Future.sync(() {
+      {Duration? expiration, SetAction action = SetAction.SET}) {
+    return Future.sync(() {
       _checkExpiration(expiration);
       var request = <raw.SetOperation>[];
       keysAndValues.forEach((key, value) {
@@ -241,7 +242,7 @@ class MemCacheImpl implements Memcache {
             throw const ModifiedError();
           }
           // If one element has another status throw.
-          throw new MemcacheError(result.status, 'Error storing item');
+          throw MemcacheError(result.status, 'Error storing item');
         });
         return null;
       });
@@ -249,12 +250,12 @@ class MemCacheImpl implements Memcache {
   }
 
   Future remove(key) {
-    return new Future.sync(() => _raw.remove([_createRemoveOperation(key)]))
+    return Future.sync(() => _raw.remove([_createRemoveOperation(key)]))
         .then((List<raw.RemoveResult> responses) {
       final result = responses[0];
       if (result.status != raw.Status.NO_ERROR &&
           result.status != raw.Status.KEY_NOT_FOUND) {
-        throw new MemcacheError(result.status, 'Error removing item');
+        throw MemcacheError(result.status, 'Error removing item');
       }
 
       // The remove is considered succesful no matter whether the key was
@@ -264,7 +265,7 @@ class MemCacheImpl implements Memcache {
   }
 
   Future removeAll(Iterable keys) {
-    return new Future.sync(() {
+    return Future.sync(() {
       var request = keys.map(_createRemoveOperation).toList(growable: false);
       return _raw.remove(request).then((List<raw.RemoveResult> responses) {
         if (responses.length != request.length) {
@@ -274,7 +275,7 @@ class MemCacheImpl implements Memcache {
         for (final result in responses) {
           if (result.status != raw.Status.NO_ERROR &&
               result.status != raw.Status.KEY_NOT_FOUND) {
-            throw new MemcacheError(result.status, 'Error removing item');
+            throw MemcacheError(result.status, 'Error removing item');
           }
         }
 
@@ -285,11 +286,11 @@ class MemCacheImpl implements Memcache {
     });
   }
 
-  Future<int> increment(key, {int delta: 1, int initialValue: 0}) {
+  Future<int> increment(key, {int delta = 1, int initialValue = 0}) {
     var direction = delta >= 0
         ? raw.IncrementOperation.INCREMENT
         : raw.IncrementOperation.DECREMENT;
-    return new Future.sync(() => _raw.increment([
+    return Future.sync(() => _raw.increment([
           _createIncrementOperation(key, direction, delta.abs(), initialValue)
         ])).then((List<raw.IncrementResult> responses) {
       if (responses.length != 1) {
@@ -298,21 +299,21 @@ class MemCacheImpl implements Memcache {
       }
       var response = responses[0];
       if (response.status != raw.Status.NO_ERROR) {
-        throw new MemcacheError(response.status, response.message);
+        throw MemcacheError(response.status, response.message);
       }
       return response.value;
     });
   }
 
-  Future<int> decrement(key, {int delta: 1, int initialValue: 0}) {
+  Future<int> decrement(key, {int delta = 1, int initialValue = 0}) {
     return increment(key, delta: -delta, initialValue: initialValue);
   }
 
   Future clear() {
-    return new Future.sync(() => _raw.clear());
+    return Future.sync(() => _raw.clear());
   }
 
   Memcache withCAS() {
-    return new MemCacheImpl(_raw, withCas: true);
+    return MemCacheImpl(_raw, withCas: true);
   }
 }

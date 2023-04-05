@@ -161,7 +161,7 @@ class Header {
 
   Header(Uint8List b)
       : bytes = b,
-        data = new ByteData.view(b.buffer, b.offsetInBytes, b.lengthInBytes);
+        data = ByteData.view(b.buffer, b.offsetInBytes, b.lengthInBytes);
 
   int get magic => bytes[MAGIC_OFFSET];
 
@@ -191,19 +191,19 @@ class Header {
 
   int get valueLength => totalBodyLength - extrasLength - keyLength;
 
-  List<int> get key {
+  List<int>? get key {
     if (keyLength == 0) return null;
     return bytes.sublist(Response.HEADER_LEN + extrasLength,
         Response.HEADER_LEN + extrasLength + keyLength);
   }
 
-  List<int> get value {
+  List<int>? get value {
     if (totalBodyLength == extrasLength + keyLength) return null;
     return bytes.sublist(
         Response.HEADER_LEN + extrasLength + keyLength, bytes.length);
   }
 
-  String get valueAsString {
+  String? get valueAsString {
     var valueInBytes = value;
     if (valueInBytes == null) return null;
     return utf8.decode(valueInBytes);
@@ -217,7 +217,7 @@ class Header {
   }
 
   static int totalBodyLengthFromHeader(Uint8List header) {
-    return new ByteData.view(header.buffer, header.offsetInBytes)
+    return ByteData.view(header.buffer, header.offsetInBytes)
         .getUint32(TOTAL_BODY_LENGTH_OFFSET, Endian.big);
   }
 }
@@ -287,9 +287,9 @@ class Request extends Header {
   // Delta, initial and expiration.
   static final int INCREMENT_EXTRAS_LENGTH = 20;
 
-  Request(int opcode, int extrasLen, List<int> key, List<int> value,
+  Request(int opcode, int extrasLen, List<int>? key, List<int>? value,
       [int cas = 0])
-      : super(new Uint8List(HEADER_LEN +
+      : super(Uint8List(HEADER_LEN +
             extrasLen +
             (key != null ? key.length : 0) +
             (value != null ? value.length : 0))) {
@@ -313,27 +313,27 @@ class Request extends Header {
   }
 
   factory Request.flush() {
-    return new Request(Opcode.OPCODE_FLUSH, 0, null, null);
+    return Request(Opcode.OPCODE_FLUSH, 0, null, null);
   }
 
   factory Request.get(List<int> key) {
-    return new Request._get(Opcode.OPCODE_GET, key);
+    return Request._get(Opcode.OPCODE_GET, key);
   }
 
   factory Request.getq(List<int> key) {
-    return new Request._get(Opcode.OPCODE_GETQ, key);
+    return Request._get(Opcode.OPCODE_GETQ, key);
   }
 
   factory Request.getk(List<int> key) {
-    return new Request._get(Opcode.OPCODE_GETK, key);
+    return Request._get(Opcode.OPCODE_GETK, key);
   }
 
   factory Request.getqk(List<int> key) {
-    return new Request._get(Opcode.OPCODE_GETKQ, key);
+    return Request._get(Opcode.OPCODE_GETKQ, key);
   }
 
   factory Request._get(int opcode, List<int> key) {
-    var request = new Request(opcode, GET_EXTRAS_LENGTH, key, null);
+    var request = Request(opcode, GET_EXTRAS_LENGTH, key, null);
     var keyOffset = HEADER_LEN;
     request.bytes.setRange(keyOffset, keyOffset + key.length - 1, key);
     return request;
@@ -341,25 +341,23 @@ class Request extends Header {
 
   factory Request.add(List<int> key, List<int> value,
       {int flags: 0, int expiration: 0}) {
-    return new Request._update(
-        Opcode.OPCODE_ADD, key, value, flags, expiration, 0);
+    return Request._update(Opcode.OPCODE_ADD, key, value, flags, expiration, 0);
   }
 
   factory Request.set(List<int> key, List<int> value,
       {int flags: 0, int expiration: 0, int cas: 0}) {
-    return new Request._update(
+    return Request._update(
         Opcode.OPCODE_SET, key, value, flags, expiration, cas);
   }
 
   factory Request.replace(List<int> key, List<int> value,
       {int flags: 0, int expiration: 0, int cas: 0}) {
-    return new Request._update(
+    return Request._update(
         Opcode.OPCODE_REPLACE, key, value, flags, expiration, cas);
   }
 
   factory Request.delete(List<int> key, {int cas: 0}) {
-    return new Request(
-        Opcode.OPCODE_DELETE, DELETE_EXTRAS_LENGTH, key, null, cas);
+    return Request(Opcode.OPCODE_DELETE, DELETE_EXTRAS_LENGTH, key, null, cas);
   }
 
   factory Request._update(int opcode, List<int> key, List<int> value, int flags,
@@ -378,7 +376,7 @@ class Request extends Header {
       default:
         throw "Unsupported";
     }
-    var request = new Request(opcode, extrasLength, key, value, cas);
+    var request = Request(opcode, extrasLength, key, value, cas);
     request.data.setUint32(FLAGS_OFFSET, flags, Endian.big);
     request.data.setUint32(EXPIRATION_OFFSET, expiration, Endian.big);
     return request;
@@ -386,19 +384,19 @@ class Request extends Header {
 
   factory Request.increment(List<int> key, int delta, int initialValue,
       {int expiration: 0}) {
-    return new Request._incrDecr(
+    return Request._incrDecr(
         Opcode.OPCODE_INCREMENT, key, delta, initialValue, expiration);
   }
 
   factory Request.decrement(List<int> key, int delta, int initialValue,
       {int expiration: 0}) {
-    return new Request._incrDecr(
+    return Request._incrDecr(
         Opcode.OPCODE_DECREMENT, key, delta, initialValue, expiration);
   }
 
   factory Request._incrDecr(
       int opcode, List<int> key, int delta, int initialValue, int expiration) {
-    var request = new Request(opcode, INCREMENT_EXTRAS_LENGTH, key, null);
+    var request = Request(opcode, INCREMENT_EXTRAS_LENGTH, key, null);
     request.data.setUint64(DELTA_OFFSET, delta, Endian.big);
     request.data.setUint64(INITIAL_VALUE_OFFSET, initialValue, Endian.big);
     request.data.setUint32(INCREMENT_EXPIRATION_OFFSET, expiration, Endian.big);
@@ -406,7 +404,7 @@ class Request extends Header {
   }
 
   factory Request.version() {
-    return new Request(Opcode.OPCODE_VERSION, 0, null, null);
+    return Request(Opcode.OPCODE_VERSION, 0, null, null);
   }
 
   int get vbucketId => vbucketIdOrStatus;
@@ -416,7 +414,7 @@ class Request extends Header {
     if (extrasLength >= 4) {
       return data.getUint32(FLAGS_OFFSET, Endian.big);
     } else {
-      throw new MemCacheError('Request for $opcode does not contain flags');
+      throw MemCacheError('Request for $opcode does not contain flags');
     }
   }
 
@@ -482,7 +480,7 @@ class Response extends Header {
 
   int get status => vbucketIdOrStatus;
 
-  String get statusMessage {
+  String? get statusMessage {
     if (status == ResponseStatus.NO_ERROR) return null;
     return valueAsString;
   }
@@ -491,7 +489,7 @@ class Response extends Header {
     if (extrasLength >= 4) {
       return data.getUint32(FLAGS_OFFSET, Endian.big);
     } else {
-      throw new MemCacheError('Request for $opcode does not contain flags');
+      throw MemCacheError('Request for $opcode does not contain flags');
     }
   }
 
@@ -499,7 +497,7 @@ class Response extends Header {
     if (extrasLength == 0 && keyLength == 0 && totalBodyLength == 8) {
       return data.getUint64(INCREMENT_VALUE_OFFSET, Endian.big);
     } else {
-      throw new MemCacheError('Request for $opcode does not contain '
+      throw MemCacheError('Request for $opcode does not contain '
           'incremented/decremented value');
     }
   }
@@ -519,13 +517,13 @@ class Response extends Header {
 
 class PendingRequest {
   final opaque;
-  final _completer = new Completer<Response>();
+  final _completer = Completer<Response>();
 
   PendingRequest(Request request) : opaque = request.opaque;
 
   Future<Response> get future => _completer.future;
 
-  void complete(Response response) {
+  void complete(Response? response) {
     _completer.complete(response);
   }
 
@@ -534,12 +532,12 @@ class PendingRequest {
   }
 }
 
-class ResponseTransformer extends StreamTransformerBase<List<int>, Response> {
+class ResponseTransformer extends StreamTransformerBase<Uint8List, Response> {
   const ResponseTransformer();
 
   Stream<Response> bind(Stream<List<int>> stream) {
-    return new Stream<Response>.eventTransformed(stream,
-        (EventSink<Response> sink) => new _ResponseTransformerSink(sink));
+    return Stream<Response>.eventTransformed(
+        stream, (EventSink<Response> sink) => _ResponseTransformerSink(sink));
   }
 }
 
@@ -550,13 +548,13 @@ class _ResponseTransformerSink implements EventSink<List<int>> {
   static const int STATE_BODY = 2;
   static const int STATE_FAILURE = 3;
 
-  final controller = new StreamController<Response>();
+  final controller = StreamController<Response>();
 
   int pendingBytes = 0;
   int state = STATE_START;
-  final Uint8List header = new Uint8List(Response.HEADER_LEN);
-  int remaining;
-  Response response; // Current response being received.
+  final Uint8List header = Uint8List(Response.HEADER_LEN);
+  int? remaining;
+  Response? response; // Current response being received.
 
   final EventSink<Response> _outSink;
 
@@ -573,31 +571,31 @@ class _ResponseTransformerSink implements EventSink<List<int>> {
   }
 
   void addError(e, [s]) {
-    _outSink.addError(new MemCacheError(e.toString()), s);
+    _outSink.addError(MemCacheError(e.toString()), s);
   }
 
   void close() {
     if (state != STATE_START) {
-      _outSink.addError(new MemCacheError('Short message'));
+      _outSink.addError(MemCacheError('Short message'));
     }
     _outSink.close();
   }
 
   void parse(List<int> bytes) {
     void addResponse() {
-      _outSink.add(response);
+      _outSink.add(response!);
       response = null;
       state = STATE_START;
     }
 
     void checkHeader(Response response) {
       if (response.magic != Header.RESPOSE_MAGIC) {
-        throw new MemCacheError(
+        throw MemCacheError(
             'Protocol error: Invalid magic value ${header[0]} in response');
       }
       if (response.extrasLength + response.keyLength >
           response.totalBodyLength) {
-        throw new MemCacheError(
+        throw MemCacheError(
             'Protocol error: Invalid length fields in response');
       }
     }
@@ -610,21 +608,21 @@ class _ResponseTransformerSink implements EventSink<List<int>> {
           // Check for full response including body.
           if (bytes is Uint8List && (length - index) >= Response.HEADER_LEN) {
             var totalBodyLengthIndex = index + Header.TOTAL_BODY_LENGTH_OFFSET;
-            var totalBodyLength = new ByteData.view(
+            var totalBodyLength = ByteData.view(
                     bytes.buffer, bytes.offsetInBytes + totalBodyLengthIndex, 4)
                 .getUint32(0, Endian.big);
             var totalMessageLength = Response.HEADER_LEN + totalBodyLength;
             if (length - index >= totalMessageLength) {
               if (index == 0 && bytes.length == totalMessageLength) {
-                response = new Response(bytes);
-                checkHeader(response);
+                response = Response(bytes);
+                checkHeader(response!);
               } else {
-                var view = new Uint8List.view(
+                var view = Uint8List.view(
                     bytes.buffer,
                     bytes.offsetInBytes + index,
                     Response.HEADER_LEN + totalBodyLength);
-                response = new Response(view);
-                checkHeader(response);
+                response = Response(view);
+                checkHeader(response!);
               }
               index += totalMessageLength;
               addResponse();
@@ -639,25 +637,25 @@ class _ResponseTransformerSink implements EventSink<List<int>> {
           break;
         case STATE_HEADER:
           // Fill as many header bytes as possible.
-          int headerBytes = (bytes.length - index) >= remaining
-              ? remaining
+          int headerBytes = (bytes.length - index) >= remaining!
+              ? remaining!
               : (bytes.length - index);
-          int headerIndex = Response.HEADER_LEN - remaining;
+          int headerIndex = Response.HEADER_LEN - remaining!;
           for (int i = 0; i < headerBytes; i++) {
             header[headerIndex + i] = bytes[index + i];
           }
-          remaining -= headerBytes;
+          remaining = remaining! - headerBytes;
           index += headerBytes;
           if (remaining == 0) {
             int bodyLength = Header.totalBodyLengthFromHeader(header);
-            var buffer = new Uint8List(Response.HEADER_LEN + bodyLength);
+            var buffer = Uint8List(Response.HEADER_LEN + bodyLength);
             for (int i = 0; i < Response.HEADER_LEN; i++) {
               buffer[i] = header[i];
             }
-            response = new Response(buffer);
-            checkHeader(response);
-            remaining = response.totalBodyLength;
-            if (remaining > 0) {
+            response = Response(buffer);
+            checkHeader(response!);
+            remaining = response?.totalBodyLength;
+            if ((remaining ?? 0) > 0) {
               state = STATE_BODY;
             } else {
               addResponse();
@@ -666,22 +664,22 @@ class _ResponseTransformerSink implements EventSink<List<int>> {
           break;
         case STATE_BODY:
           // Fill as many body bytes as possible.
-          int bodyBytes = (bytes.length - index) >= remaining
-              ? remaining
+          int bodyBytes = (bytes.length - index) >= remaining!
+              ? remaining!
               : (bytes.length - index);
           int bodyIndex =
-              Response.HEADER_LEN + response.totalBodyLength - remaining;
+              Response.HEADER_LEN + response!.totalBodyLength - remaining!;
           for (int i = 0; i < bodyBytes; i++) {
-            response.bytes[bodyIndex + i] = bytes[index + i];
+            response!.bytes[bodyIndex + i] = bytes[index + i];
           }
-          remaining -= bodyBytes;
+          remaining = remaining! - bodyBytes;
           index += bodyBytes;
           if (remaining == 0) {
             addResponse();
           }
           break;
         case STATE_FAILURE:
-          throw new MemCacheError('Data on failed connection');
+          throw MemCacheError('Data on failed connection');
           break;
       }
     }
@@ -698,18 +696,18 @@ class MemCacheError implements Exception {
 
 class MemCacheNativeConnection {
   int _nextRequestId = 0;
-  final _pendingRequests = new Queue<PendingRequest>();
+  final _pendingRequests = Queue<PendingRequest>();
   final Socket _socket;
   bool _closed = false;
 
   MemCacheNativeConnection._(this._socket) {
-    _socket.transform(new ResponseTransformer()).listen(onResponse,
+    _socket.transform(ResponseTransformer()).listen(onResponse,
         onError: onError, onDone: onDone, cancelOnError: true);
   }
 
   static Future<MemCacheNativeConnection> connect(server, int port) {
     return Socket.connect(server, port).then((socket) {
-      return new MemCacheNativeConnection._(socket);
+      return MemCacheNativeConnection._(socket);
     });
   }
 
@@ -739,14 +737,14 @@ class MemCacheNativeConnection {
       // The corresponding request was not found.
       _closed = true;
       _pendingRequests.forEach((pending) {
-        pending.completeError(new MemCacheError("Protocol error"));
+        pending.completeError(MemCacheError("Protocol error"));
       });
       _socket.destroy();
     }
   }
 
   void onError(error) {
-    close(error is MemCacheError ? error.message : error?.toString());
+    close(error is MemCacheError ? error.message : error.toString());
   }
 
   void onDone() {
@@ -755,11 +753,11 @@ class MemCacheNativeConnection {
 
   Future<Response> sendRequest(Request request) {
     if (_closed) {
-      return new Future.error(new MemCacheError("Connection closed"));
+      return Future.error(MemCacheError("Connection closed"));
     }
     request.opaque = _nextRequestId;
     _nextRequestId = (_nextRequestId + 1) & 0xffffffff;
-    var pending = new PendingRequest(request);
+    var pending = PendingRequest(request);
     _pendingRequests.add(pending);
     _socket.add(request.bytes);
     return pending.future;
@@ -771,7 +769,7 @@ class MemCacheNativeConnection {
 
     // When there is a communication error complete all pending requests.
     _pendingRequests.forEach((pending) {
-      pending.completeError(new MemCacheError(error));
+      pending.completeError(MemCacheError(error));
     });
 
     try {
